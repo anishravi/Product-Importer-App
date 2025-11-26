@@ -7,7 +7,6 @@ class ProductBase(BaseModel):
     sku: str = Field(..., description="Product SKU (unique, case-insensitive)")
     name: str = Field(..., description="Product name")
     description: Optional[str] = Field(None, description="Product description")
-    active: bool = Field(True, description="Active status")
 
 
 class ProductCreate(ProductBase):
@@ -18,7 +17,6 @@ class ProductUpdate(BaseModel):
     sku: Optional[str] = None
     name: Optional[str] = None
     description: Optional[str] = None
-    active: Optional[bool] = None
 
 
 class ProductResponse(ProductBase):

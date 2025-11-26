@@ -58,11 +58,6 @@
                         <input type="text" id="filter-sku" placeholder="Filter by SKU" class="filter-input">
                         <input type="text" id="filter-name" placeholder="Filter by Name" class="filter-input">
                         <input type="text" id="filter-description" placeholder="Filter by Description" class="filter-input">
-                        <select id="filter-active" class="filter-input">
-                            <option value="">All Status</option>
-                            <option value="true">Active</option>
-                            <option value="false">Inactive</option>
-                        </select>
                         <button class="btn-secondary" id="apply-filters-btn">Apply Filters</button>
                         <button class="btn-secondary" id="clear-filters-btn">Clear</button>
                     </div>
@@ -81,7 +76,6 @@
                                     <th>SKU</th>
                                     <th>Name</th>
                                     <th>Description</th>
-                                    <th>Active</th>
                                     <th>Actions</th>
                                 </tr>
                             </thead>
@@ -137,12 +131,6 @@
                     <div class="form-group">
                         <label for="product-description">Description</label>
                         <textarea id="product-description" rows="3"></textarea>
-                    </div>
-                    <div class="form-group">
-                        <label>
-                            <input type="checkbox" id="product-active" checked>
-                            Active
-                        </label>
                     </div>
                     <div class="modal-actions">
                         <button type="button" class="btn-secondary" id="cancel-product-btn">Cancel</button>

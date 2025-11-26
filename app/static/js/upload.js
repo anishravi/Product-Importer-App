@@ -28,6 +28,10 @@ document.addEventListener('DOMContentLoaded', function() {
         uploadArea.classList.remove('dragover');
         const file = e.dataTransfer.files[0];
         if (file && file.name.endsWith('.csv')) {
+            // Clear previous results
+            const uploadResult = document.getElementById('upload-result');
+            uploadResult.innerHTML = '';
+            
             handleFileUpload(file);
         } else {
             showToast('Please upload a CSV file', 'error');
@@ -37,6 +41,10 @@ document.addEventListener('DOMContentLoaded', function() {
     fileInput.addEventListener('change', (e) => {
         const file = e.target.files[0];
         if (file) {
+            // Clear previous results
+            const uploadResult = document.getElementById('upload-result');
+            uploadResult.innerHTML = '';
+            
             handleFileUpload(file);
         }
     });
@@ -70,11 +78,12 @@ async function handleFileUpload(file) {
         const task = await response.json();
         currentUploadTaskId = task.task_id;
 
-        // Connect WebSocket for progress updates
+        console.log(`Upload task started: ${task.task_id}`);
+
+        // Connect WebSocket for progress updates (primary method)
         connectWebSocket(task.task_id);
 
-        // Also poll for status as fallback
-        pollUploadStatus(task.task_id);
+        // Note: Removed automatic polling fallback - only use WebSocket unless it fails
 
     } catch (error) {
         showToast(`Upload failed: ${error.message}`, 'error');
@@ -87,30 +96,56 @@ function connectWebSocket(taskId) {
     const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
     const wsUrl = `${protocol}//${window.location.host}/ws/${taskId}`;
     
+    console.log(`Connecting to WebSocket: ${wsUrl}`);
     uploadWebSocket = new WebSocket(wsUrl);
+
+    uploadWebSocket.onopen = () => {
+        console.log('WebSocket connected successfully');
+    };
 
     uploadWebSocket.onmessage = (event) => {
         const data = JSON.parse(event.data);
+        console.log('WebSocket message received:', data);
         
-        if (data.type === 'progress') {
+        if (data.type === 'connected') {
+            console.log(`WebSocket connected to task ${data.task_id}`);
+        } else if (data.type === 'progress') {
             updateProgress(data.progress, data.processed, data.total);
             if (data.errors && data.errors.length > 0) {
                 displayErrors(data.errors);
             }
         } else if (data.type === 'complete') {
+            console.log('Upload complete via WebSocket:', data);
             handleUploadComplete(data.success, data.message);
+        } else if (data.type === 'pong') {
+            console.log('WebSocket pong received');
         }
     };
 
     uploadWebSocket.onerror = (error) => {
         console.error('WebSocket error:', error);
-        // Fallback to polling
+        showToast('Connection error - falling back to polling', 'warning');
+        // Only fallback to polling if WebSocket fails
         pollUploadStatus(taskId);
     };
 
-    uploadWebSocket.onclose = () => {
-        console.log('WebSocket closed');
+    uploadWebSocket.onclose = (event) => {
+        console.log('WebSocket closed:', event.code, event.reason);
+        // Don't auto-reconnect or fallback unless there was an error
+        if (event.code !== 1000) { // 1000 is normal closure
+            console.log('Abnormal WebSocket close, falling back to polling');
+            pollUploadStatus(taskId);
+        }
     };
+
+    // Send a ping every 30 seconds to keep connection alive
+    const pingInterval = setInterval(() => {
+        if (uploadWebSocket && uploadWebSocket.readyState === WebSocket.OPEN) {
+            uploadWebSocket.send('ping');
+        } else {
+            clearInterval(pingInterval);
+        }
+    }, 30000);
 }
 
 async function pollUploadStatus(taskId) {
@@ -167,36 +202,115 @@ function updateProgress(progress, processed, total) {
 
 function displayErrors(errors) {
     const uploadErrors = document.getElementById('upload-errors');
-    uploadErrors.innerHTML = errors.slice(0, 10).map(err => 
-        `<div class="error-item">Row ${err.row || 'N/A'}: ${err.error}</div>`
-    ).join('');
     
-    if (errors.length > 10) {
-        uploadErrors.innerHTML += `<div class="error-item">... and ${errors.length - 10} more errors</div>`;
+    // Only show errors during processing, not after completion
+    if (currentUploadTaskId && errors && errors.length > 0) {
+        uploadErrors.innerHTML = errors.slice(0, 10).map(err => {
+            // Handle different error structures
+            if (err.batch_error) {
+                return `<div class="error-item">System: ${err.batch_error}</div>`;
+            } else if (err.error) {
+                const rowText = err.row !== undefined ? `Row ${err.row}` : 'Processing';
+                return `<div class="error-item">${rowText}: ${err.error}</div>`;
+            } else if (typeof err === 'string') {
+                return `<div class="error-item">Error: ${err}</div>`;
+            } else {
+                return `<div class="error-item">Unknown error occurred</div>`;
+            }
+        }).join('');
+        
+        if (errors.length > 10) {
+            uploadErrors.innerHTML += `<div class="error-item">... and ${errors.length - 10} more errors</div>`;
+        }
     }
 }
 
 function handleUploadComplete(success, message) {
     const uploadResult = document.getElementById('upload-result');
+    const uploadErrors = document.getElementById('upload-errors');
     const progressContainer = document.getElementById('upload-progress');
     
-    if (success) {
-        uploadResult.innerHTML = `<div class="result-message success">${message}</div>`;
-        showToast('Upload completed successfully!', 'success');
-        
-        // Refresh products if on products tab
-        if (document.getElementById('products-tab').classList.contains('active')) {
-            loadProducts();
-        }
-    } else {
-        uploadResult.innerHTML = `<div class="result-message error">${message}</div>`;
-        showToast('Upload failed', 'error');
+    // Close WebSocket connection
+    if (uploadWebSocket) {
+        uploadWebSocket.close(1000, 'Upload completed');
+        uploadWebSocket = null;
     }
     
-    // Hide progress after a delay
+    // Clear any processing errors since we're showing final result
+    uploadErrors.innerHTML = '';
+    
+    if (success) {
+        uploadResult.innerHTML = `<div class="result-message success">✅ ${message}</div>`;
+        showToast('Upload completed successfully!', 'success');
+        
+        // Set global flag for recent upload
+        if (window.appState) {
+            window.appState.recentUpload = true;
+            window.appState.lastUploadTime = Date.now();
+        }
+        
+        // Add visual indicator to products tab
+        const productsTab = document.querySelector('[data-tab="products"]');
+        if (productsTab && !productsTab.classList.contains('active')) {
+            productsTab.classList.add('has-updates');
+            productsTab.title = 'New products available - click to view';
+        }
+        
+        // Always refresh products data after successful upload
+        // This ensures the data is ready when user switches to products tab
+        if (typeof loadProducts === 'function') {
+            loadProducts();
+        } else {
+            console.warn('loadProducts function not available');
+        }
+    } else {
+        // Better error message handling
+        let errorMessage = message || 'Upload failed';
+        
+        // Try to parse error message if it's JSON
+        try {
+            if (typeof message === 'string' && message.startsWith('[{')) {
+                const errors = JSON.parse(message);
+                if (Array.isArray(errors) && errors.length > 0) {
+                    errorMessage = `Failed: ${errors[0].error || 'Unknown error'}`;
+                    
+                    // Show first few errors in detail
+                    const errorDetails = errors.slice(0, 5).map(err => {
+                        if (err.batch_error) {
+                            return `System: ${err.batch_error}`;
+                        } else if (err.error) {
+                            const rowText = err.row !== undefined ? `Row ${err.row}` : 'Processing';
+                            return `${rowText}: ${err.error}`;
+                        } else {
+                            return `Unknown error: ${JSON.stringify(err)}`;
+                        }
+                    }).join('<br>');
+                    
+                    uploadResult.innerHTML = `
+                        <div class="result-message error">
+                            ❌ Upload failed with ${errors.length} error(s)<br>
+                            <small>${errorDetails}</small>
+                            ${errors.length > 5 ? `<br><small>... and ${errors.length - 5} more errors</small>` : ''}
+                        </div>
+                    `;
+                } else {
+                    uploadResult.innerHTML = `<div class="result-message error">❌ ${errorMessage}</div>`;
+                }
+            } else {
+                uploadResult.innerHTML = `<div class="result-message error">❌ ${errorMessage}</div>`;
+            }
+        } catch (e) {
+            // Use original message if parsing fails
+            uploadResult.innerHTML = `<div class="result-message error">❌ ${errorMessage}</div>`;
+        }
+        
+        showToast(`Upload failed: ${errorMessage}`, 'error');
+    }
+    
+    // Hide progress bar but keep result visible
     setTimeout(() => {
         progressContainer.style.display = 'none';
-    }, 5000);
+    }, 2000);
     
     currentUploadTaskId = null;
 }

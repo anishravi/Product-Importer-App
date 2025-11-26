@@ -24,7 +24,6 @@ async def list_products(
     sku: Optional[str] = None,
     name: Optional[str] = None,
     description: Optional[str] = None,
-    active: Optional[bool] = None,
     db: AsyncSession = Depends(get_db)
 ):
     """List products with pagination and filtering."""
@@ -34,8 +33,7 @@ async def list_products(
         page_size=page_size,
         sku_filter=sku,
         name_filter=name,
-        description_filter=description,
-        active_filter=active
+        description_filter=description
     )
     
     total_pages = (total + page_size - 1) // page_size

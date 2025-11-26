@@ -1,5 +1,11 @@
 // Main application logic - Tab switching and utilities
 
+// Global state for cross-tab communication
+window.appState = {
+    recentUpload: false,
+    lastUploadTime: null
+};
+
 document.addEventListener('DOMContentLoaded', function() {
     // Tab switching
     const tabBtns = document.querySelectorAll('.tab-btn');
@@ -16,6 +22,17 @@ document.addEventListener('DOMContentLoaded', function() {
             // Add active class to clicked tab and corresponding content
             btn.classList.add('active');
             document.getElementById(`${targetTab}-tab`).classList.add('active');
+            
+            // Refresh data when switching to specific tabs
+            if (targetTab === 'products' && typeof loadProducts === 'function') {
+                loadProducts();
+                // Clear the recent upload flag and visual indicator since we've refreshed
+                window.appState.recentUpload = false;
+                btn.classList.remove('has-updates');
+                btn.title = '';
+            } else if (targetTab === 'webhooks' && typeof loadWebhooks === 'function') {
+                loadWebhooks();
+            }
         });
     });
 });

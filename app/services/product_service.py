@@ -54,8 +54,7 @@ class ProductService:
         page_size: int = 20,
         sku_filter: Optional[str] = None,
         name_filter: Optional[str] = None,
-        description_filter: Optional[str] = None,
-        active_filter: Optional[bool] = None
+        description_filter: Optional[str] = None
     ) -> Tuple[List[Product], int]:
         """List products with pagination and filtering."""
         query = select(Product)
@@ -68,8 +67,6 @@ class ProductService:
             conditions.append(Product.name.ilike(f"%{name_filter}%"))
         if description_filter:
             conditions.append(Product.description.ilike(f"%{description_filter}%"))
-        if active_filter is not None:
-            conditions.append(Product.active == active_filter)
         
         if conditions:
             query = query.where(and_(*conditions))

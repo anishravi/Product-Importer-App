@@ -78,7 +78,6 @@ function displayProducts(products) {
             <td>${product.sku}</td>
             <td>${product.name}</td>
             <td>${product.description || ''}</td>
-            <td><span class="status-badge ${product.active ? 'active' : 'inactive'}">${product.active ? 'Active' : 'Inactive'}</span></td>
             <td>
                 <button class="btn-primary btn-sm" onclick="editProduct(${product.id})">Edit</button>
                 <button class="btn-danger btn-sm" onclick="deleteProduct(${product.id})">Delete</button>
@@ -115,12 +114,10 @@ function applyFilters() {
     const sku = document.getElementById('filter-sku').value.trim();
     const name = document.getElementById('filter-name').value.trim();
     const description = document.getElementById('filter-description').value.trim();
-    const active = document.getElementById('filter-active').value;
 
     if (sku) filters.sku = sku;
     if (name) filters.name = name;
     if (description) filters.description = description;
-    if (active) filters.active = active === 'true';
 
     currentPage = 1;
     loadProducts();
@@ -130,7 +127,6 @@ function clearFilters() {
     document.getElementById('filter-sku').value = '';
     document.getElementById('filter-name').value = '';
     document.getElementById('filter-description').value = '';
-    document.getElementById('filter-active').value = '';
     filters = {};
     currentPage = 1;
     loadProducts();
@@ -149,7 +145,6 @@ function openProductModal(product = null) {
         document.getElementById('product-sku').value = product.sku;
         document.getElementById('product-name').value = product.name;
         document.getElementById('product-description').value = product.description || '';
-        document.getElementById('product-active').checked = product.active;
     } else {
         title.textContent = 'Create Product';
     }
@@ -168,8 +163,7 @@ async function handleProductSubmit(e) {
     const productData = {
         sku: document.getElementById('product-sku').value,
         name: document.getElementById('product-name').value,
-        description: document.getElementById('product-description').value,
-        active: document.getElementById('product-active').checked
+        description: document.getElementById('product-description').value
     };
 
     try {

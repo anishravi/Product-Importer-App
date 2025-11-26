@@ -5,6 +5,8 @@ from app.api.routes import products, upload, bulk, webhooks
 from app.api.websocket_route import router as websocket_router
 from app.database import engine, Base
 import os
+import asyncio
+from app.api.redis_progress import redis_progress_subscriber
 
 app = FastAPI(
     title="Product Importer API",
@@ -42,9 +44,24 @@ async def startup():
         # await conn.run_sync(Base.metadata.create_all)
         pass
 
+    # Start Redis subscriber that forwards progress messages to WebSocket manager
+    try:
+        app.state._redis_progress_task = asyncio.create_task(redis_progress_subscriber())
+    except Exception:
+        pass
+
 
 @app.on_event("shutdown")
 async def shutdown():
     """Cleanup on shutdown."""
+    # Cancel background redis subscriber if running
+    task = getattr(app.state, '_redis_progress_task', None)
+    if task:
+        task.cancel()
+        try:
+            await task
+        except Exception:
+            pass
+
     await engine.dispose()
 
