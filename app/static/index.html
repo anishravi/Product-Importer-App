@@ -1,0 +1,222 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Product Importer</title>
+    <link rel="stylesheet" href="/static/css/style.css">
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>Product Importer</h1>
+            <nav class="tabs">
+                <button class="tab-btn active" data-tab="upload">Upload</button>
+                <button class="tab-btn" data-tab="products">Products</button>
+                <button class="tab-btn" data-tab="webhooks">Webhooks</button>
+            </nav>
+        </header>
+
+        <main>
+            <!-- Upload Tab -->
+            <div id="upload-tab" class="tab-content active">
+                <div class="upload-section">
+                    <h2>Import Products from CSV</h2>
+                    <div class="upload-area" id="upload-area">
+                        <input type="file" id="file-input" accept=".csv" hidden>
+                        <div class="upload-placeholder">
+                            <p>Drag and drop CSV file here or click to browse</p>
+                            <button class="btn-primary" onclick="document.getElementById('file-input').click()">Choose File</button>
+                        </div>
+                    </div>
+                    <div id="upload-progress" class="progress-container" style="display: none;">
+                        <div class="progress-bar">
+                            <div class="progress-fill" id="progress-fill"></div>
+                        </div>
+                        <div class="progress-info">
+                            <span id="progress-text">0%</span>
+                            <span id="progress-details">0 / 0 rows processed</span>
+                        </div>
+                        <div id="upload-errors" class="errors"></div>
+                    </div>
+                    <div id="upload-result" class="result-message"></div>
+                </div>
+            </div>
+
+            <!-- Products Tab -->
+            <div id="products-tab" class="tab-content">
+                <div class="products-section">
+                    <div class="section-header">
+                        <h2>Products</h2>
+                        <div class="header-actions">
+                            <button class="btn-primary" id="create-product-btn">Create Product</button>
+                            <button class="btn-danger" id="delete-all-products-btn">Delete All Products</button>
+                        </div>
+                    </div>
+                    
+                    <div class="filters">
+                        <input type="text" id="filter-sku" placeholder="Filter by SKU" class="filter-input">
+                        <input type="text" id="filter-name" placeholder="Filter by Name" class="filter-input">
+                        <input type="text" id="filter-description" placeholder="Filter by Description" class="filter-input">
+                        <select id="filter-active" class="filter-input">
+                            <option value="">All Status</option>
+                            <option value="true">Active</option>
+                            <option value="false">Inactive</option>
+                        </select>
+                        <button class="btn-secondary" id="apply-filters-btn">Apply Filters</button>
+                        <button class="btn-secondary" id="clear-filters-btn">Clear</button>
+                    </div>
+
+                    <div class="bulk-actions" id="bulk-actions" style="display: none;">
+                        <span id="selected-count">0 selected</span>
+                        <button class="btn-danger" id="bulk-delete-btn">Delete Selected</button>
+                    </div>
+
+                    <div class="products-table-container">
+                        <table class="products-table">
+                            <thead>
+                                <tr>
+                                    <th><input type="checkbox" id="select-all"></th>
+                                    <th>ID</th>
+                                    <th>SKU</th>
+                                    <th>Name</th>
+                                    <th>Description</th>
+                                    <th>Active</th>
+                                    <th>Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody id="products-tbody"></tbody>
+                        </table>
+                    </div>
+
+                    <div class="pagination">
+                        <button id="prev-page" class="btn-secondary">Previous</button>
+                        <span id="page-info">Page 1 of 1</span>
+                        <select id="page-size">
+                            <option value="20">20 per page</option>
+                            <option value="50">50 per page</option>
+                            <option value="100">100 per page</option>
+                        </select>
+                        <button id="next-page" class="btn-secondary">Next</button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Webhooks Tab -->
+            <div id="webhooks-tab" class="tab-content">
+                <div class="webhooks-section">
+                    <div class="section-header">
+                        <h2>Webhooks</h2>
+                        <button class="btn-primary" id="create-webhook-btn">Create Webhook</button>
+                    </div>
+
+                    <div class="webhooks-list" id="webhooks-list"></div>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <!-- Product Modal -->
+    <div id="product-modal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3 id="product-modal-title">Create Product</h3>
+                <span class="close">&times;</span>
+            </div>
+            <div class="modal-body">
+                <form id="product-form">
+                    <input type="hidden" id="product-id">
+                    <div class="form-group">
+                        <label for="product-sku">SKU *</label>
+                        <input type="text" id="product-sku" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="product-name">Name *</label>
+                        <input type="text" id="product-name" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="product-description">Description</label>
+                        <textarea id="product-description" rows="3"></textarea>
+                    </div>
+                    <div class="form-group">
+                        <label>
+                            <input type="checkbox" id="product-active" checked>
+                            Active
+                        </label>
+                    </div>
+                    <div class="modal-actions">
+                        <button type="button" class="btn-secondary" id="cancel-product-btn">Cancel</button>
+                        <button type="submit" class="btn-primary">Save</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+            <!-- Delete All Confirmation Modal -->
+            <div id="delete-all-modal" class="modal">
+                <div class="modal-content">
+                    <div class="modal-header">
+                        <h3>Confirm Delete All Products</h3>
+                        <span class="close" id="delete-all-modal-close">&times;</span>
+                    </div>
+                    <div class="modal-body">
+                        <p>This will permanently delete <strong>all</strong> products. This action cannot be undone.</p>
+                        <p>To confirm, type <strong>DELETE</strong> into the box below.</p>
+                        <input type="text" id="delete-all-confirm-input" placeholder="Type DELETE to confirm" style="width:100%; padding:8px; margin-top:8px;">
+                    </div>
+                    <div class="modal-actions">
+                        <button type="button" class="btn-secondary" id="cancel-delete-all-btn">Cancel</button>
+                        <button type="button" class="btn-danger" id="confirm-delete-all-btn" disabled>Delete All</button>
+                    </div>
+                </div>
+            </div>
+
+    <!-- Webhook Modal -->
+    <div id="webhook-modal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3 id="webhook-modal-title">Create Webhook</h3>
+                <span class="close">&times;</span>
+            </div>
+            <div class="modal-body">
+                <form id="webhook-form">
+                    <input type="hidden" id="webhook-id">
+                    <div class="form-group">
+                        <label for="webhook-url">URL *</label>
+                        <input type="url" id="webhook-url" required>
+                    </div>
+                    <div class="form-group">
+                        <label>Event Types *</label>
+                        <div class="checkbox-group">
+                            <label><input type="checkbox" name="event-type" value="product.created"> product.created</label>
+                            <label><input type="checkbox" name="event-type" value="product.updated"> product.updated</label>
+                            <label><input type="checkbox" name="event-type" value="product.deleted"> product.deleted</label>
+                            <label><input type="checkbox" name="event-type" value="product.bulk_deleted"> product.bulk_deleted</label>
+                        </div>
+                    </div>
+                    <div class="form-group">
+                        <label>
+                            <input type="checkbox" id="webhook-enabled" checked>
+                            Enabled
+                        </label>
+                    </div>
+                    <div class="modal-actions">
+                        <button type="button" class="btn-secondary" id="cancel-webhook-btn">Cancel</button>
+                        <button type="submit" class="btn-primary">Save</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <!-- Toast Notification -->
+    <div id="toast" class="toast"></div>
+
+    <script src="/static/js/app.js"></script>
+    <script src="/static/js/upload.js"></script>
+    <script src="/static/js/products.js"></script>
+    <script src="/static/js/webhooks.js"></script>
+</body>
+</html>
+
