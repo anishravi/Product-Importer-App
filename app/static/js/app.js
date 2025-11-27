@@ -38,7 +38,8 @@ document.addEventListener('DOMContentLoaded', function() {
 });
 
 // Utility functions
-const API_BASE = 'http://localhost:8000/api';
+// Dynamically determine API base URL from current location
+const API_BASE = `${window.location.protocol}//${window.location.host}/api`;
 
 function showToast(message, type = 'success') {
     const toast = document.getElementById('toast');
